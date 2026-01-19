@@ -71,6 +71,7 @@ class GenerationRequest(BaseModel):
     temperature: float = 1.0
     topk: int = 50
     cfg_scale: float = 1.5
+    seed: Optional[int] = None  # For reproducible generations
 
 class GenerationResponse(BaseModel):
     id: str
@@ -99,6 +100,13 @@ async def generate_music(req: GenerationRequest):
         # Validate/Process inputs
         lyrics = req.lyrics if req.lyrics else ""
         tags = req.tags
+        
+        # Set seed for reproducibility
+        if req.seed is not None:
+            torch.manual_seed(req.seed)
+            if torch.cuda.is_available():
+                torch.cuda.manual_seed_all(req.seed)
+            logger.info(f"Using seed: {req.seed}")
         
         # Calculate max_audio_length_ms
         max_audio_length_ms = req.duration_s * 1000

@@ -123,6 +123,7 @@ export const useAppStore = create(
                 temperature: 1.0,
                 topk: 50,
                 cfg_scale: 1.5,
+                seed: null,  // null = random, number = fixed seed
             },
 
             setTags: (tags) => set({ tags }),

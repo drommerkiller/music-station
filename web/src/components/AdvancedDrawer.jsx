@@ -158,7 +158,7 @@ const AdvancedDrawer = ({ isOpen, onClose }) => {
                     <div className="divider" />
 
                     {/* Top K */}
-                    <div>
+                    <div style={{ marginBottom: '40px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
                             <span style={{ fontSize: '14px', color: 'var(--text)' }}>Top K</span>
                             <span className="mono" style={{ fontSize: '12px', color: 'var(--text-dim)' }}>
@@ -173,6 +173,69 @@ const AdvancedDrawer = ({ isOpen, onClose }) => {
                             value={params.topk}
                             onChange={(e) => handleChange('topk', e.target.value)}
                         />
+                    </div>
+
+                    <div className="divider" />
+
+                    {/* Seed Control */}
+                    <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+                            <span style={{ fontSize: '14px', color: 'var(--text)' }}>Seed</span>
+                            <span className="mono" style={{ fontSize: '12px', color: 'var(--text-dim)' }}>
+                                {params.seed === null ? 'Random' : params.seed}
+                            </span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            <input
+                                type="number"
+                                placeholder="Random"
+                                value={params.seed === null ? '' : params.seed}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    updateParam('seed', val === '' ? null : parseInt(val, 10));
+                                }}
+                                style={{
+                                    flex: 1,
+                                    padding: '10px 12px',
+                                    background: 'var(--surface)',
+                                    border: '1px solid var(--border)',
+                                    borderRadius: 'var(--radius-sm)',
+                                    color: 'var(--text)',
+                                    fontSize: '13px'
+                                }}
+                            />
+                            <button
+                                onClick={() => updateParam('seed', Math.floor(Math.random() * 2147483647))}
+                                style={{
+                                    padding: '10px 14px',
+                                    background: 'var(--surface-raised)',
+                                    border: '1px solid var(--border)',
+                                    borderRadius: 'var(--radius-sm)',
+                                    color: 'var(--amber)',
+                                    fontSize: '12px',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                🎲
+                            </button>
+                            <button
+                                onClick={() => updateParam('seed', null)}
+                                style={{
+                                    padding: '10px 14px',
+                                    background: params.seed === null ? 'var(--amber)' : 'var(--surface-raised)',
+                                    border: '1px solid var(--border)',
+                                    borderRadius: 'var(--radius-sm)',
+                                    color: params.seed === null ? 'var(--void)' : 'var(--text-dim)',
+                                    fontSize: '11px',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Auto
+                            </button>
+                        </div>
+                        <p style={{ fontSize: '11px', color: 'var(--text-ghost)', marginTop: '8px' }}>
+                            Same seed = same output (reproducible)
+                        </p>
                     </div>
 
                 </div>
