@@ -521,6 +521,57 @@
             border-color: var(--amber);
         }
 
+        .effect-slot-header {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+
+        .effect-slot-header .effect-select {
+            flex: 1;
+        }
+
+        .effect-expand-btn {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-dim);
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .effect-expand-btn:hover {
+            color: var(--amber);
+            border-color: var(--amber);
+        }
+
+        .effect-mix {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 4px;
+            font-size: 10px;
+            color: var(--text-dim);
+        }
+
+        .effect-mix input[type="range"] {
+            flex: 1;
+            height: 4px;
+            accent-color: var(--amber);
+        }
+
+        .effect-mix span:first-child {
+            width: 24px;
+        }
+
+        .effect-mix span:last-child {
+            width: 32px;
+            text-align: right;
+            font-family: monospace;
+            color: var(--amber);
+        }
+
         /* Drag and drop overlay */
         .drag-overlay {
             position: absolute;
@@ -822,27 +873,45 @@
                 <div class="file-list-header">Effects</div>
 
                 <!-- Effect Slot 1 -->
-                <div class="effect-slot">
-                    <select id="effectSlot1" class="effect-select">
-                        <option value="none">Slot 1: None</option>
-                        <option value="compressor">Compressor</option>
-                        <option value="chorus">Chorus</option>
-                        <option value="delay">Delay</option>
-                        <option value="tremolo">Tremolo</option>
-                    </select>
-                    <div class="effect-params" id="slot1Params"></div>
+                <div class="effect-slot" id="effectSlot1Container">
+                    <div class="effect-slot-header">
+                        <select id="effectSlot1" class="effect-select">
+                            <option value="none">Slot 1: None</option>
+                            <option value="compressor">Compressor</option>
+                            <option value="chorus">Chorus</option>
+                            <option value="delay">Delay</option>
+                            <option value="tremolo">Tremolo</option>
+                            <option value="overdrive">Overdrive</option>
+                        </select>
+                        <button class="effect-expand-btn" id="slot1Expand" title="Settings">⚙</button>
+                    </div>
+                    <div class="effect-mix">
+                        <span>Mix</span>
+                        <input type="range" id="slot1Mix" min="0" max="1" step="0.05" value="0.5">
+                        <span id="slot1MixVal">50%</span>
+                    </div>
+                    <div class="effect-params" id="slot1Params" style="display:none;"></div>
                 </div>
 
                 <!-- Effect Slot 2 -->
-                <div class="effect-slot">
-                    <select id="effectSlot2" class="effect-select">
-                        <option value="none">Slot 2: None</option>
-                        <option value="compressor">Compressor</option>
-                        <option value="chorus">Chorus</option>
-                        <option value="delay">Delay</option>
-                        <option value="tremolo">Tremolo</option>
-                    </select>
-                    <div class="effect-params" id="slot2Params"></div>
+                <div class="effect-slot" id="effectSlot2Container">
+                    <div class="effect-slot-header">
+                        <select id="effectSlot2" class="effect-select">
+                            <option value="none">Slot 2: None</option>
+                            <option value="compressor">Compressor</option>
+                            <option value="chorus">Chorus</option>
+                            <option value="delay">Delay</option>
+                            <option value="tremolo">Tremolo</option>
+                            <option value="overdrive">Overdrive</option>
+                        </select>
+                        <button class="effect-expand-btn" id="slot2Expand" title="Settings">⚙</button>
+                    </div>
+                    <div class="effect-mix">
+                        <span>Mix</span>
+                        <input type="range" id="slot2Mix" min="0" max="1" step="0.05" value="0.5">
+                        <span id="slot2MixVal">50%</span>
+                    </div>
+                    <div class="effect-params" id="slot2Params" style="display:none;"></div>
                 </div>
 
                 <!-- Loop Toggle -->
@@ -1071,6 +1140,14 @@
                         intensity: 0.3,
                         rate: 4,
                         stereoPhase: 0,
+                        bypass: false
+                    });
+
+                    this.effects.overdrive = new this.tuna.Overdrive({
+                        outputGain: 0.5,
+                        drive: 0.7,
+                        curveAmount: 1,
+                        algorithmIndex: 0,
                         bypass: false
                     });
                 }
@@ -4581,6 +4658,41 @@
         // Loop toggle
         document.getElementById('loopToggle').addEventListener('change', (e) => {
             app.audioEngine.setLooping(e.target.checked);
+        });
+
+        // Mix sliders
+        document.getElementById('slot1Mix').addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            document.getElementById('slot1MixVal').textContent = Math.round(val * 100) + '%';
+            // For Tuna effects that support wetLevel
+            const effectName = app.audioEngine.effectSlots[0];
+            if (effectName && app.audioEngine.effects[effectName]) {
+                const fx = app.audioEngine.effects[effectName];
+                if (fx.wetLevel !== undefined) fx.wetLevel = val;
+                if (fx.dryLevel !== undefined) fx.dryLevel = 1 - val;
+            }
+        });
+
+        document.getElementById('slot2Mix').addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            document.getElementById('slot2MixVal').textContent = Math.round(val * 100) + '%';
+            const effectName = app.audioEngine.effectSlots[1];
+            if (effectName && app.audioEngine.effects[effectName]) {
+                const fx = app.audioEngine.effects[effectName];
+                if (fx.wetLevel !== undefined) fx.wetLevel = val;
+                if (fx.dryLevel !== undefined) fx.dryLevel = 1 - val;
+            }
+        });
+
+        // Expand buttons (toggle params visibility)
+        document.getElementById('slot1Expand').addEventListener('click', () => {
+            const params = document.getElementById('slot1Params');
+            params.style.display = params.style.display === 'none' ? 'block' : 'none';
+        });
+
+        document.getElementById('slot2Expand').addEventListener('click', () => {
+            const params = document.getElementById('slot2Params');
+            params.style.display = params.style.display === 'none' ? 'block' : 'none';
         });
 
         // Check for audio URL in query params
