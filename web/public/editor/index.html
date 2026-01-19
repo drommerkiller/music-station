@@ -501,6 +501,26 @@
             color: var(--amber);
         }
 
+        .effect-slot {
+            padding: 4px 8px;
+        }
+
+        .effect-select {
+            width: 100%;
+            padding: 6px 8px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text);
+            font-size: 11px;
+            cursor: pointer;
+        }
+
+        .effect-select:focus {
+            outline: none;
+            border-color: var(--amber);
+        }
+
         /* Drag and drop overlay */
         .drag-overlay {
             position: absolute;
@@ -797,6 +817,43 @@
 
         <!-- Right sidebar -->
         <div class="right-sidebar">
+            <!-- Effects Panel (at top so meters visible) -->
+            <div class="effects-panel">
+                <div class="file-list-header">Effects</div>
+
+                <!-- Effect Slot 1 -->
+                <div class="effect-slot">
+                    <select id="effectSlot1" class="effect-select">
+                        <option value="none">Slot 1: None</option>
+                        <option value="compressor">Compressor</option>
+                        <option value="chorus">Chorus</option>
+                        <option value="delay">Delay</option>
+                        <option value="tremolo">Tremolo</option>
+                    </select>
+                    <div class="effect-params" id="slot1Params"></div>
+                </div>
+
+                <!-- Effect Slot 2 -->
+                <div class="effect-slot">
+                    <select id="effectSlot2" class="effect-select">
+                        <option value="none">Slot 2: None</option>
+                        <option value="compressor">Compressor</option>
+                        <option value="chorus">Chorus</option>
+                        <option value="delay">Delay</option>
+                        <option value="tremolo">Tremolo</option>
+                    </select>
+                    <div class="effect-params" id="slot2Params"></div>
+                </div>
+
+                <!-- Loop Toggle -->
+                <div class="effect-row" style="margin-top: 8px; border-top: 1px solid var(--border); padding-top: 8px;">
+                    <label class="effect-toggle">
+                        <input type="checkbox" id="loopToggle">
+                        <span class="effect-name">🔁 Loop Selection</span>
+                    </label>
+                </div>
+            </div>
+
             <!-- Meters panel -->
             <div class="meters-panel">
                 <!-- Real-time Peak Meter -->
@@ -850,46 +907,6 @@
                 <div class="file-stat">
                     <span class="file-stat-label">LUFS (momentary):</span>
                     <span class="file-stat-value" id="lufsMomentary">-</span>
-                </div>
-            </div>
-
-            <!-- Effects Panel -->
-            <div class="effects-panel">
-                <div class="file-list-header">Effects</div>
-
-                <!-- Compressor -->
-                <div class="effect-row">
-                    <label class="effect-toggle">
-                        <input type="checkbox" id="compressorToggle">
-                        <span class="effect-name">Compressor</span>
-                    </label>
-                </div>
-                <div class="effect-params" id="compressorParams" style="display:none;">
-                    <div class="param-row">
-                        <span>Threshold</span>
-                        <input type="range" id="compThreshold" min="-60" max="0" value="-20">
-                        <span id="compThresholdVal">-20 dB</span>
-                    </div>
-                    <div class="param-row">
-                        <span>Ratio</span>
-                        <input type="range" id="compRatio" min="1" max="20" value="4">
-                        <span id="compRatioVal">4:1</span>
-                    </div>
-                </div>
-
-                <!-- Reverb -->
-                <div class="effect-row">
-                    <label class="effect-toggle">
-                        <input type="checkbox" id="reverbToggle">
-                        <span class="effect-name">Reverb</span>
-                    </label>
-                </div>
-                <div class="effect-params" id="reverbParams" style="display:none;">
-                    <div class="param-row">
-                        <span>Wet</span>
-                        <input type="range" id="reverbWet" min="0" max="1" step="0.1" value="0.5">
-                        <span id="reverbWetVal">50%</span>
-                    </div>
                 </div>
             </div>
 
@@ -1005,14 +1022,10 @@
                 this.loopStart = 0;
                 this.loopEnd = 0;
 
-                // Tuna effects
+                // Tuna effects - slot based
                 this.tuna = null;
-                this.compressor = null;
-                this.reverb = null;
-                this.effectsEnabled = {
-                    compressor: false,
-                    reverb: false
-                };
+                this.effects = {};  // All available effects
+                this.effectSlots = [null, null];  // Two effect slots
             }
 
             async init() {
@@ -1027,8 +1040,7 @@
                 if (!this.tuna && typeof Tuna !== 'undefined') {
                     this.tuna = new Tuna(this.audioContext);
 
-                    // Create compressor
-                    this.compressor = new this.tuna.Compressor({
+                    this.effects.compressor = new this.tuna.Compressor({
                         threshold: -20,
                         makeupGain: 1,
                         attack: 1,
@@ -1036,18 +1048,30 @@
                         ratio: 4,
                         knee: 5,
                         automakeup: true,
-                        bypass: true
+                        bypass: false
                     });
 
-                    // Create reverb (convolver)
-                    this.reverb = new this.tuna.Convolver({
-                        highCut: 22050,
-                        lowCut: 20,
-                        dryLevel: 1,
+                    this.effects.chorus = new this.tuna.Chorus({
+                        rate: 1.5,
+                        feedback: 0.2,
+                        delay: 0.0045,
+                        bypass: false
+                    });
+
+                    this.effects.delay = new this.tuna.Delay({
+                        feedback: 0.45,
+                        delayTime: 300,
                         wetLevel: 0.5,
-                        level: 1,
-                        impulse: null, // Will use built-in
-                        bypass: true
+                        dryLevel: 1,
+                        cutoff: 2000,
+                        bypass: false
+                    });
+
+                    this.effects.tremolo = new this.tuna.Tremolo({
+                        intensity: 0.3,
+                        rate: 4,
+                        stereoPhase: 0,
+                        bypass: false
                     });
                 }
 
@@ -1068,50 +1092,33 @@
             rebuildAudioChain() {
                 // Disconnect existing connections
                 try { this.gainNode.disconnect(); } catch (e) { }
-                try { this.compressor?.disconnect(); } catch (e) { }
-                try { this.reverb?.disconnect(); } catch (e) { }
+                Object.values(this.effects).forEach(fx => {
+                    try { fx.disconnect(); } catch (e) { }
+                });
                 try { this.analyserNode.disconnect(); } catch (e) { }
 
-                // Build chain: gainNode -> [compressor] -> [reverb] -> analyser -> destination
+                // Build chain: gainNode -> [slot1] -> [slot2] -> analyser -> destination
                 let lastNode = this.gainNode;
 
-                if (this.compressor && this.effectsEnabled.compressor) {
-                    this.compressor.bypass = false;
-                    lastNode.connect(this.compressor);
-                    lastNode = this.compressor;
-                } else if (this.compressor) {
-                    this.compressor.bypass = true;
-                }
-
-                if (this.reverb && this.effectsEnabled.reverb) {
-                    this.reverb.bypass = false;
-                    lastNode.connect(this.reverb);
-                    lastNode = this.reverb;
-                } else if (this.reverb) {
-                    this.reverb.bypass = true;
-                }
+                this.effectSlots.forEach(effectName => {
+                    if (effectName && this.effects[effectName]) {
+                        const fx = this.effects[effectName];
+                        lastNode.connect(fx);
+                        lastNode = fx;
+                    }
+                });
 
                 lastNode.connect(this.analyserNode);
                 this.analyserNode.connect(this.audioContext.destination);
             }
 
-            toggleEffect(name, enabled) {
-                this.effectsEnabled[name] = enabled;
+            setEffectSlot(slotIndex, effectName) {
+                this.effectSlots[slotIndex] = effectName === 'none' ? null : effectName;
                 this.rebuildAudioChain();
             }
 
-            setCompressorParams(params) {
-                if (!this.compressor) return;
-                if (params.threshold !== undefined) this.compressor.threshold = params.threshold;
-                if (params.ratio !== undefined) this.compressor.ratio = params.ratio;
-                if (params.attack !== undefined) this.compressor.attack = params.attack;
-                if (params.release !== undefined) this.compressor.release = params.release;
-            }
-
-            setReverbParams(params) {
-                if (!this.reverb) return;
-                if (params.wetLevel !== undefined) this.reverb.wetLevel = params.wetLevel;
-                if (params.dryLevel !== undefined) this.reverb.dryLevel = params.dryLevel;
+            getEffectParams(name) {
+                return this.effects[name];
             }
 
             setVolume(db) {
@@ -4562,35 +4569,18 @@
         // Start the application
         const app = new App();
 
-        // Effects panel event handlers
-        document.getElementById('compressorToggle').addEventListener('change', (e) => {
-            const enabled = e.target.checked;
-            app.audioEngine.toggleEffect('compressor', enabled);
-            document.getElementById('compressorParams').style.display = enabled ? 'block' : 'none';
+        // Effects panel event handlers - slot-based dropdowns
+        document.getElementById('effectSlot1').addEventListener('change', (e) => {
+            app.audioEngine.setEffectSlot(0, e.target.value);
         });
 
-        document.getElementById('reverbToggle').addEventListener('change', (e) => {
-            const enabled = e.target.checked;
-            app.audioEngine.toggleEffect('reverb', enabled);
-            document.getElementById('reverbParams').style.display = enabled ? 'block' : 'none';
+        document.getElementById('effectSlot2').addEventListener('change', (e) => {
+            app.audioEngine.setEffectSlot(1, e.target.value);
         });
 
-        document.getElementById('compThreshold').addEventListener('input', (e) => {
-            const val = parseFloat(e.target.value);
-            app.audioEngine.setCompressorParams({ threshold: val });
-            document.getElementById('compThresholdVal').textContent = val + ' dB';
-        });
-
-        document.getElementById('compRatio').addEventListener('input', (e) => {
-            const val = parseFloat(e.target.value);
-            app.audioEngine.setCompressorParams({ ratio: val });
-            document.getElementById('compRatioVal').textContent = val + ':1';
-        });
-
-        document.getElementById('reverbWet').addEventListener('input', (e) => {
-            const val = parseFloat(e.target.value);
-            app.audioEngine.setReverbParams({ wetLevel: val });
-            document.getElementById('reverbWetVal').textContent = Math.round(val * 100) + '%';
+        // Loop toggle
+        document.getElementById('loopToggle').addEventListener('change', (e) => {
+            app.audioEngine.setLooping(e.target.checked);
         });
 
         // Check for audio URL in query params
