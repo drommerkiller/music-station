@@ -572,6 +572,61 @@
             color: var(--amber);
         }
 
+        .effect-modal {
+            min-width: 280px;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0 4px;
+        }
+
+        .modal-close:hover {
+            color: var(--amber);
+        }
+
+        .effect-param-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .effect-param-row label {
+            width: 80px;
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+
+        .effect-param-row input[type="range"] {
+            flex: 1;
+            height: 6px;
+            accent-color: var(--amber);
+        }
+
+        .effect-param-row .param-value {
+            width: 50px;
+            text-align: right;
+            font-size: 11px;
+            font-family: monospace;
+            color: var(--amber);
+        }
+
         /* Drag and drop overlay */
         .drag-overlay {
             position: absolute;
@@ -994,6 +1049,17 @@
             <span id="positionInfo"></span>
         </div>
         <span id="zoomInfo"></span>
+    </div>
+
+    <!-- Effect Settings Modal -->
+    <div class="modal-overlay" id="effectModal">
+        <div class="modal effect-modal">
+            <div class="modal-header">
+                <h3 id="effectModalTitle">Effect Settings</h3>
+                <button class="modal-close" id="effectModalClose">×</button>
+            </div>
+            <div id="effectModalContent"></div>
+        </div>
     </div>
 
     <!-- Export Modal -->
@@ -4684,16 +4750,101 @@
             }
         });
 
-        // Expand buttons (toggle params visibility)
-        document.getElementById('slot1Expand').addEventListener('click', () => {
-            const params = document.getElementById('slot1Params');
-            params.style.display = params.style.display === 'none' ? 'block' : 'none';
+        // Effect parameter definitions
+        const effectParams = {
+            compressor: [
+                { name: 'threshold', label: 'Threshold', min: -60, max: 0, step: 1, unit: 'dB' },
+                { name: 'ratio', label: 'Ratio', min: 1, max: 20, step: 0.5, unit: ':1' },
+                { name: 'attack', label: 'Attack', min: 0, max: 100, step: 1, unit: 'ms' },
+                { name: 'release', label: 'Release', min: 10, max: 1000, step: 10, unit: 'ms' },
+                { name: 'knee', label: 'Knee', min: 0, max: 40, step: 1, unit: 'dB' }
+            ],
+            chorus: [
+                { name: 'rate', label: 'Rate', min: 0.1, max: 8, step: 0.1, unit: 'Hz' },
+                { name: 'feedback', label: 'Feedback', min: 0, max: 0.95, step: 0.05, unit: '' },
+                { name: 'delay', label: 'Delay', min: 0.001, max: 0.02, step: 0.001, unit: 's' }
+            ],
+            delay: [
+                { name: 'delayTime', label: 'Time', min: 10, max: 1000, step: 10, unit: 'ms' },
+                { name: 'feedback', label: 'Feedback', min: 0, max: 0.9, step: 0.05, unit: '' },
+                { name: 'wetLevel', label: 'Wet', min: 0, max: 1, step: 0.1, unit: '' },
+                { name: 'cutoff', label: 'Cutoff', min: 100, max: 8000, step: 100, unit: 'Hz' }
+            ],
+            tremolo: [
+                { name: 'intensity', label: 'Intensity', min: 0, max: 1, step: 0.05, unit: '' },
+                { name: 'rate', label: 'Rate', min: 0.1, max: 20, step: 0.1, unit: 'Hz' },
+                { name: 'stereoPhase', label: 'Phase', min: 0, max: 180, step: 10, unit: '°' }
+            ],
+            overdrive: [
+                { name: 'drive', label: 'Drive', min: 0, max: 1, step: 0.05, unit: '' },
+                { name: 'outputGain', label: 'Output', min: 0, max: 1, step: 0.05, unit: '' },
+                { name: 'curveAmount', label: 'Curve', min: 0, max: 1, step: 0.05, unit: '' }
+            ]
+        };
+
+        let currentModalSlot = null;
+
+        function openEffectModal(slotIndex) {
+            const effectName = app.audioEngine.effectSlots[slotIndex];
+            if (!effectName || !effectParams[effectName]) return;
+
+            currentModalSlot = slotIndex;
+            const fx = app.audioEngine.effects[effectName];
+            const params = effectParams[effectName];
+
+            document.getElementById('effectModalTitle').textContent = effectName.charAt(0).toUpperCase() + effectName.slice(1);
+
+            let html = '';
+            params.forEach(p => {
+                const currentVal = fx[p.name] !== undefined ? fx[p.name] : 0;
+                const displayVal = p.unit === ':1' ? currentVal + p.unit :
+                    p.unit === '' ? (currentVal * 100).toFixed(0) + '%' :
+                        currentVal + ' ' + p.unit;
+                html += `
+                    <div class="effect-param-row">
+                        <label>${p.label}</label>
+                        <input type="range" data-param="${p.name}" data-slot="${slotIndex}" 
+                               min="${p.min}" max="${p.max}" step="${p.step}" value="${currentVal}">
+                        <span class="param-value" id="val_${p.name}_${slotIndex}">${displayVal}</span>
+                    </div>
+                `;
+            });
+
+            document.getElementById('effectModalContent').innerHTML = html;
+            document.getElementById('effectModal').style.display = 'flex';
+
+            // Add listeners to sliders
+            document.querySelectorAll('#effectModalContent input[type="range"]').forEach(slider => {
+                slider.addEventListener('input', (e) => {
+                    const paramName = e.target.dataset.param;
+                    const slot = parseInt(e.target.dataset.slot);
+                    const val = parseFloat(e.target.value);
+                    const effName = app.audioEngine.effectSlots[slot];
+                    if (effName && app.audioEngine.effects[effName]) {
+                        app.audioEngine.effects[effName][paramName] = val;
+                    }
+                    const param = effectParams[effName].find(p => p.name === paramName);
+                    const displayVal = param.unit === ':1' ? val + param.unit :
+                        param.unit === '' ? (val * 100).toFixed(0) + '%' :
+                            val + ' ' + param.unit;
+                    document.getElementById(`val_${paramName}_${slot}`).textContent = displayVal;
+                });
+            });
+        }
+
+        document.getElementById('effectModalClose').addEventListener('click', () => {
+            document.getElementById('effectModal').style.display = 'none';
         });
 
-        document.getElementById('slot2Expand').addEventListener('click', () => {
-            const params = document.getElementById('slot2Params');
-            params.style.display = params.style.display === 'none' ? 'block' : 'none';
+        document.getElementById('effectModal').addEventListener('click', (e) => {
+            if (e.target.id === 'effectModal') {
+                document.getElementById('effectModal').style.display = 'none';
+            }
         });
+
+        // Expand buttons open modal
+        document.getElementById('slot1Expand').addEventListener('click', () => openEffectModal(0));
+        document.getElementById('slot2Expand').addEventListener('click', () => openEffectModal(1));
 
         // Check for audio URL in query params
         (async function () {
