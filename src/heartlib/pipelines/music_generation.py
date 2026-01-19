@@ -203,7 +203,16 @@ class HeartMuLaGenPipeline(Pipeline):
 
     def postprocess(self, model_outputs: Dict[str, Any], save_path: str):
         wav = model_outputs["wav"]
-        torchaudio.save(save_path, wav, 48000)
+        try:
+             torchaudio.save(save_path, wav, 48000)
+        except Exception:
+            import soundfile as sf
+            # torchaudio tensor is (C, T), soundfile expects (T, C)
+            wav_np = wav.cpu().float().numpy()
+            if wav_np.ndim == 2:
+                wav_np = wav_np.T
+            sf.write(save_path, wav_np, 48000)
+        return model_outputs
 
     @classmethod
     def from_pretrained(

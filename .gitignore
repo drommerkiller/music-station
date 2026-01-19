@@ -8,3 +8,11 @@ checkpoint/
 **.egg-info/
 build/
 .idea/
+node_modules/
+venv/
+ckpt/
+temp_generations/
+*.log
+HeartMuLa-oss-3B
+ckpt
+
